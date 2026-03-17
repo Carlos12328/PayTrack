@@ -1,0 +1,35 @@
+services:
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: paytrack
+      MYSQL_USER: paytrack
+      MYSQL_PASSWORD: paytrackpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  api:
+    build: ./backend
+    command: npm start
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./frontend:/app/frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=db
+      - DB_USER=paytrack
+      - DB_PASSWORD=paytrackpassword
+      - DB_NAME=paytrack
+      - PORT=3000
+    depends_on:
+      - db
+
+volumes:
+  mysql_data:
