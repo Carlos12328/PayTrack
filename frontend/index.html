@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayTrack | Gestão de Trufas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="logo">
+                <h1>PayTrack</h1>
+            </div>
+            <nav class="nav-menu">
+                <ul>
+                    <li class="nav-item active" data-view="dashboard">
+                        <span class="icon">📊</span> Dashboard
+                    </li>
+                    <li class="nav-item" data-view="clients">
+                        <span class="icon">👥</span> Clientes
+                    </li>
+                    <li class="nav-item" data-view="sales">
+                        <span class="icon">💰</span> Vendas
+                    </li>
+                    <li class="nav-item" data-view="payments">
+                        <span class="icon">💸</span> Pagamentos
+                    </li>
+                    <li class="nav-item" data-view="products">
+                        <span class="icon">🍫</span> Produtos
+                    </li>
+                    <li class="nav-item" data-view="orders">
+                        <span class="icon">🔔</span> Pedidos
+                    </li>
+                </ul>
+            </nav>
+            <div style="padding: 20px;">
+                <a href="store.html" target="_blank" class="btn btn-secondary"
+                    style="width: 100%; border: 1px solid rgba(255,255,255,0.2); text-align: center; display: block; text-decoration: none; margin-bottom: 10px;">🛍️
+                    Ver Loja</a>
+                <button class="btn btn-secondary" style="width: 100%; border: 1px solid rgba(255,255,255,0.2);"
+                    onclick="logout()">Sair</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h2 id="page-title">Dashboard</h2>
+                <div class="actions" id="header-actions">
+                    <!-- Dynamic Actions -->
+                </div>
+            </header>
+
+            <div id="content-area" class="content-area">
+                <!-- Dynamic Content will be loaded here -->
+                <div class="dashboard-grid">
+                    <div class="card stat-card">
+                        <h3>Total a Receber</h3>
+                        <p class="stat-value" id="total-receivable">R$ 0,00</p>
+                    </div>
+                    <div class="card stat-card">
+                        <h3>Vendas (Mês)</h3>
+                        <p class="stat-value" id="total-sales-month">R$ 0,00</p>
+                    </div>
+                    <div class="card stat-card">
+                        <h3>Recebido (Mês)</h3>
+                        <p class="stat-value" id="total-payments-month">R$ 0,00</p>
+                    </div>
+                </div>
+
+                <div class="card recent-activity">
+                    <h3>Saldos Pendentes</h3>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Consumido</th>
+                                    <th>Pago</th>
+                                    <th>Deve</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="balances-table-body">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="saleModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('saleModal')">&times;</span>
+            <h2>Registrar Venda</h2>
+            <form id="saleForm">
+                <div class="form-group">
+                    <label>Cliente</label>
+                    <input type="text" id="sale-client-name" list="client-suggestions" required autocomplete="off"
+                        placeholder="Digite o nome do cliente">
+                    <datalist id="client-suggestions"></datalist>
+                </div>
+                <div class="form-group">
+                    <label>Quantidade</label>
+                    <input type="number" id="sale-quantity" required min="1" value="1">
+                </div>
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select id="sale-type">
+                        <option value="Normal">Normal (R$ 5,00)</option>
+                        <option value="Fit">Fit (R$ 8,00 / 2x R$ 15,00)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Data</label>
+                    <input type="date" id="sale-date" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="paymentModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('paymentModal')">&times;</span>
+            <h2>Registrar Pagamento</h2>
+            <form id="paymentForm">
+                <div class="form-group">
+                    <label>Nome no Comprovante (Payer Name)</label>
+                    <input type="text" id="payment-payer" required placeholder="Ex: Carlos Eduardo">
+                </div>
+                <div class="form-group">
+                    <label>Valor (R$)</label>
+                    <input type="number" id="payment-amount" required step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Data</label>
+                    <input type="date" id="payment-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Associar a Cliente (Opcional)</label>
+                    <select id="payment-client-select">
+                        <option value="">Automático / Nenhum</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="clientModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('clientModal')">&times;</span>
+            <h2>Novo Cliente</h2>
+            <form id="clientForm">
+                <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" id="client-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Telefone</label>
+                    <input type="text" id="client-phone">
+                </div>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="importModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('importModal')">&times;</span>
+            <h2>Importar Extrato (CSV)</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                O sistema irá ler o arquivo e cadastrar automaticamente os pagamentos de clientes identificados.
+            </p>
+            <form id="importForm">
+                <div class="form-group">
+                    <label>Arquivo CSV (Banco do Brasil)</label>
+                    <input type="file" id="import-file" accept=".csv" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Importar</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="importSalesModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('importSalesModal')">&times;</span>
+            <h2>Importar Vendas (Google Forms)</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                Selecione o CSV gerado pelo Google Forms. O sistema identificará Clientes, Quantidade e Tipo
+                (Fit/Normal).
+            </p>
+            <form id="importSalesForm">
+                <div class="form-group">
+                    <label>Arquivo CSV</label>
+                    <input type="file" id="import-sales-file" accept=".csv" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Importar</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

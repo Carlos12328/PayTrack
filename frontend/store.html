@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayTrack - Loja de Trufas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Store Specific Overrides */
+        body {
+            overflow-y: auto;
+            /* Enable scroll for store */
+            padding-bottom: 80px;
+        }
+
+        .store-header {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .store-header h1 {
+            color: var(--accent);
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .product-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+        }
+
+        .price {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--success);
+            /* Green for money/price */
+            margin: 10px 0;
+        }
+
+        .stock-badge {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 5px;
+            border-radius: 8px;
+        }
+
+        .btn-qty {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .btn-qty:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .cart-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+
+        .cart-info {
+            color: var(--text-primary);
+        }
+
+        .cart-total {
+            color: var(--accent);
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .pix-area {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .pix-key {
+            font-family: monospace;
+            color: var(--accent);
+            font-size: 16px;
+            margin: 10px 0;
+            display: block;
+            word-break: break-all;
+        }
+
+        /* Mobile Optimization */
+        @media (max-width: 600px) {
+            .container {
+                padding: 0 15px;
+            }
+
+            .product-grid {
+                grid-template-columns: 1fr;
+                /* Full width cards on mobile for better focus */
+                gap: 15px;
+            }
+
+            .product-card {
+                flex-direction: row;
+                /* Horizontal layout on mobile */
+                align-items: center;
+                text-align: left;
+                padding: 15px;
+            }
+
+            .product-card h3 {
+                margin: 0;
+                font-size: 16px;
+                flex: 1;
+            }
+
+            .stock-badge {
+                display: none;
+                /* Hide stock badge to save space, or move it */
+            }
+
+            .price-controls-wrapper {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 5px;
+            }
+
+            .price {
+                font-size: 18px;
+                margin: 0;
+            }
+
+            .controls {
+                margin-top: 0;
+                scale: 0.9;
+                background: transparent;
+                padding: 0;
+            }
+
+            .cart-bar {
+                padding: 10px 15px;
+            }
+
+            .btn-checkout {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+
+            /* Prevent iOS Zoom on inputs */
+            input,
+            select,
+            textarea {
+                font-size: 16px !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="store-header">
+        <div style="position: absolute; top: 10px; right: 10px;">
+            <a href="login.html"
+                style="color: var(--text-secondary); text-decoration: none; font-size: 12px; border: 1px solid var(--border); padding: 5px 10px; border-radius: 4px;">🔐
+                Admin</a>
+        </div>
+        <h1>PayTrack Trufas 🍬</h1>
+        <p style="color: var(--text-secondary);">As melhores trufas, direto para você!</p>
+    </header>
+
+    <div class="container">
+        <h2 style="margin-bottom: 20px; font-weight: 600;">Sabores Disponíveis</h2>
+        <div id="product-list" class="product-grid">
+            <!-- Loading -->
+            <p style="text-align: center; grid-column: 1/-1; color: var(--text-secondary);">Carregando produtos...</p>
+        </div>
+    </div>
+
+    <div class="cart-bar" id="cart-bar" style="display: none;">
+        <div class="cart-info">
+            <span id="cart-count" style="font-weight: 700;">0</span> itens selecionados<br>
+            Total: <span id="cart-total" class="cart-total">R$ 0,00</span>
+        </div>
+        <button class="btn btn-primary" onclick="openCheckout()">
+            Finalizar Pedido ➔
+        </button>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div id="checkoutModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('checkoutModal')">&times;</span>
+            <h2 style="margin-bottom: 20px;">Confirmar Pedido</h2>
+
+            <div id="checkout-summary"
+                style="margin-bottom: 20px; padding: 15px; background: var(--bg-dark); border-radius: 8px;"></div>
+
+            <form id="orderForm">
+                <div class="form-group">
+                    <label>Seu Nome</label>
+                    <input type="text" id="client-name" required placeholder="Ex: Carlos">
+                </div>
+                <div class="form-group">
+                    <label>WhatsApp</label>
+                    <input type="tel" id="client-phone" placeholder="(11) 99999-9999">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 30px;">
+                    <button type="button" class="btn btn-secondary" style="flex: 1;"
+                        onclick="closeModal('checkoutModal')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Enviar Pedido</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Pix Modal -->
+    <div id="pixModal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <div style="font-size: 40px; margin-bottom: 10px;">🎉</div>
+            <h2 class="text-success" style="margin-bottom: 10px;">Pedido Recebido!</h2>
+            <p style="color: var(--text-secondary);">Separe o valor e faça o Pix abaixo:</p>
+
+            <div class="pix-area">
+                <small style="color: var(--text-secondary);">Chave Pix (Celular/Email)</small>
+                <span id="pix-key" class="pix-key">11999999999</span>
+                <button class="btn btn-secondary" onclick="copyPix()" style="font-size: 14px; padding: 5px 10px;">Copiar
+                    Chave</button>
+            </div>
+
+            <p style="margin-bottom: 20px;">Total a Pagar: <strong id="final-total"
+                    style="color: var(--text-primary);">R$ 0,00</strong></p>
+
+            <button class="btn btn-primary" style="width: 100%;" onclick="window.location.reload()">Fazer Novo
+                Pedido</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+        let cart = {}; // { productId: quantity }
+        let products = [];
+        const PIX_KEY = "12345678900";
+
+        async function loadProducts() {
+            try {
+                const res = await fetch(`${API_URL}/products`);
+                products = await res.json();
+                renderProducts();
+            } catch (err) {
+                document.getElementById('product-list').innerHTML = '<p class="text-danger">Erro ao carregar produtos. Tente mais tarde.</p>';
+            }
+        }
+
+        function renderProducts() {
+            const list = document.getElementById('product-list');
+            list.innerHTML = products.filter(p => p.active && p.stock > 0).map(p => `
+                <div class="card product-card">
+                    <div>
+                        <h3 style="color: var(--text-primary); font-size: 18px;">${p.name}</h3>
+                        <div class="stock-badge">${p.type} • Restam ${p.stock}</div>
+                    </div>
+                    
+                    <div class="price-controls-wrapper">
+                        <div class="price">R$ ${parseFloat(p.price).toFixed(2).replace('.', ',')}</div>
+                        
+                        <div class="controls">
+                            <button class="btn-qty" onclick="updateQty(${p.id}, -1)">-</button>
+                            <span class="qty" id="qty-${p.id}" style="font-weight: 700; width: 30px; text-align: center;">0</span>
+                            <button class="btn-qty" onclick="updateQty(${p.id}, 1)">+</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            if (products.length === 0) {
+                list.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-secondary);">Nenhuma trufa disponível no momento. :(</p>';
+            }
+        }
+
+        function updateQty(id, delta) {
+            const product = products.find(p => p.id === id);
+            if (!product) return;
+
+            if (!cart[id]) cart[id] = 0;
+            const newQty = cart[id] + delta;
+
+            if (newQty >= 0 && newQty <= product.stock) {
+                cart[id] = newQty;
+                if (cart[id] === 0) delete cart[id];
+                document.getElementById(`qty-${id}`).innerText = cart[id] || 0;
+                updateCartBar();
+            }
+        }
+
+        function updateCartBar() {
+            const count = Object.values(cart).reduce((a, b) => a + b, 0);
+            let total = 0;
+
+            for (const [id, qty] of Object.entries(cart)) {
+                const p = products.find(prod => prod.id == id);
+                if (p) total += parseFloat(p.price) * qty;
+            }
+
+            document.getElementById('cart-count').innerText = count;
+            document.getElementById('cart-total').innerText = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+            document.getElementById('cart-bar').style.display = count > 0 ? 'flex' : 'none';
+        }
+
+        function openCheckout() {
+            const summary = document.getElementById('checkout-summary');
+            let html = '<ul style="list-style: none; padding: 0;">';
+            let total = 0;
+
+            for (const [id, qty] of Object.entries(cart)) {
+                const p = products.find(prod => prod.id == id);
+                if (p) {
+                    const sub = parseFloat(p.price) * qty;
+                    total += sub;
+                    html += `
+                        <li style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--text-secondary);">
+                            <span>${qty}x ${p.name}</span>
+                            <span style="color: var(--text-primary);">${sub.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </li>`;
+                }
+            }
+            html += `<hr style="border-color: var(--border); margin: 10px 0;">
+                     <li style="display: flex; justify-content: space-between; font-weight: bold;">
+                        <span style="color: var(--text-primary);">Total</span>
+                        <span style="color: var(--accent);">${total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                     </li></ul>`;
+            summary.innerHTML = html;
+
+            document.getElementById('checkoutModal').style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        document.getElementById('orderForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('client-name').value;
+            const phone = document.getElementById('client-phone').value;
+
+            const items = Object.entries(cart).map(([id, quantity]) => ({
+                product_id: parseInt(id),
+                quantity
+            }));
+
+            try {
+                const res = await fetch(`${API_URL}/orders`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_name: name,
+                        client_phone: phone,
+                        items
+                    })
+                });
+
+                if (res.ok) {
+                    const order = await res.json();
+                    closeModal('checkoutModal');
+                    document.getElementById('final-total').innerText = parseFloat(order.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    document.getElementById('pixModal').style.display = 'flex';
+                } else {
+                    const err = await res.json();
+                    alert('Erro: ' + (err.error || 'Falha ao realizar pedido'));
+                }
+            } catch (err) {
+                alert('Erro de conexão');
+            }
+        });
+
+        function copyPix() {
+            navigator.clipboard.writeText(PIX_KEY);
+            alert('Chave Pix copiada!');
+        }
+
+        // Close modal on outside click
+        window.onclick = function (event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = "none";
+            }
+        }
+
+        loadProducts();
+    </script>
+</body>
+
+</html>
