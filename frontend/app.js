@@ -130,6 +130,11 @@ function updateHeader(title, actions = '') {
     document.getElementById('header-actions').innerHTML = actions;
 }
 
+let allBalances = [];
+let dashboardSearchTerm = '';
+let dashboardSortBy = null; // 'name', 'consumed', 'paid', 'balance'
+let dashboardSortDir = 'asc'; // 'asc' ou 'desc'
+
 async function loadDashboard() {
     // Add Export Button
     updateHeader('Dashboard', '<button class="btn btn-secondary" onclick="exportDebtorsCsv()">Exportar Relatório</button>');
@@ -153,14 +158,33 @@ async function loadDashboard() {
 
         <div class="card recent-activity">
             <h3>Saldos Pendentes</h3>
+            
+            <div style="margin-bottom: 16px;">
+                <input type="text" id="dashboard-search" placeholder="🔍 Pesquisar por nome do cliente..." 
+                    oninput="filterDashboard()"
+                    style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-dark);color:var(--text-primary);font-size:14px;box-sizing:border-box;">
+            </div>
+
             <div class="table-responsive">
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Cliente</th>
-                            <th>Consumido</th>
-                            <th>Pago</th>
-                            <th>Deve</th>
+                            <th onclick="sortDashboard('name')" style="cursor: pointer; user-select: none;">
+                                Cliente
+                                <span id="sort-icon-name" style="margin-left: 6px; font-size: 12px;"></span>
+                            </th>
+                            <th onclick="sortDashboard('consumed')" style="cursor: pointer; user-select: none;">
+                                Consumido
+                                <span id="sort-icon-consumed" style="margin-left: 6px; font-size: 12px;"></span>
+                            </th>
+                            <th onclick="sortDashboard('paid')" style="cursor: pointer; user-select: none;">
+                                Pago
+                                <span id="sort-icon-paid" style="margin-left: 6px; font-size: 12px;"></span>
+                            </th>
+                            <th onclick="sortDashboard('balance')" style="cursor: pointer; user-select: none;">
+                                Deve
+                                <span id="sort-icon-balance" style="margin-left: 6px; font-size: 12px;"></span>
+                            </th>
                             <th>Ações</th>
                         </tr>
                     </thead>
@@ -172,15 +196,31 @@ async function loadDashboard() {
         </div>
     `;
 
-    const balances = await fetchBalances();
+    // Fetch balances and filter to only those with sales
+    const allBalancesData = await fetchBalances();
+    allBalances = allBalancesData.filter(c => parseFloat(c.total_consumed) > 0);
 
     // Calculate Stats
-    const totalReceivable = balances.reduce((sum, c) => sum + parseFloat(c.balance), 0);
-
+    const totalReceivable = allBalances.reduce((sum, c) => sum + parseFloat(c.balance), 0);
     document.getElementById('total-receivable').innerText = formatCurrency(totalReceivable);
 
-    // Populate Table
-    document.getElementById('balances-table-body').innerHTML = balances.map(c => `
+    // Reset filters and sort
+    dashboardSearchTerm = '';
+    dashboardSortBy = null;
+    dashboardSortDir = 'asc';
+    renderDashboardTable(allBalances);
+}
+
+function renderDashboardTable(data) {
+    const tbody = document.getElementById('balances-table-body');
+    if (!tbody) return;
+
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#666;">Nenhum cliente encontrado.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.map(c => `
         <tr>
             <td>${c.name}</td>
             <td>${formatCurrency(c.total_consumed)}</td>
@@ -194,6 +234,64 @@ async function loadDashboard() {
             </td>
         </tr>
     `).join('');
+}
+
+function filterDashboard() {
+    dashboardSearchTerm = (document.getElementById('dashboard-search')?.value || '').toLowerCase().trim();
+
+    let filtered = allBalances.filter(c => {
+        if (dashboardSearchTerm && !c.name.toLowerCase().includes(dashboardSearchTerm)) return false;
+        return true;
+    });
+
+    if (dashboardSortBy) {
+        filtered.sort((a, b) => {
+            let valA, valB;
+            
+            if (dashboardSortBy === 'name') {
+                valA = a.name.toLowerCase();
+                valB = b.name.toLowerCase();
+            } else if (dashboardSortBy === 'consumed') {
+                valA = parseFloat(a.total_consumed);
+                valB = parseFloat(b.total_consumed);
+            } else if (dashboardSortBy === 'paid') {
+                valA = parseFloat(a.total_paid);
+                valB = parseFloat(b.total_paid);
+            } else if (dashboardSortBy === 'balance') {
+                valA = parseFloat(a.balance);
+                valB = parseFloat(b.balance);
+            }
+
+            if (valA < valB) return dashboardSortDir === 'asc' ? -1 : 1;
+            if (valA > valB) return dashboardSortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
+
+    renderDashboardTable(filtered);
+}
+
+function sortDashboard(column) {
+    // Toggle direction if clicking same column
+    if (dashboardSortBy === column) {
+        dashboardSortDir = dashboardSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        dashboardSortBy = column;
+        dashboardSortDir = 'asc';
+    }
+
+    // Update sort icons
+    ['name', 'consumed', 'paid', 'balance'].forEach(col => {
+        const icon = document.getElementById(`sort-icon-${col}`);
+        if (!icon) return;
+        if (dashboardSortBy === col) {
+            icon.innerText = dashboardSortDir === 'asc' ? '▲' : '▼';
+        } else {
+            icon.innerText = '';
+        }
+    });
+
+    filterDashboard();
 }
 
 function renderClientsTable(data) {
