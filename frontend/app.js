@@ -61,7 +61,11 @@ navItems.forEach(item => {
         switch (view) {
             case 'dashboard': loadDashboard(); break;
             case 'clients': loadClientsView(); break;
-            case 'sales': loadSalesView(); break;
+            case 'sales':
+                selectedSalesClientId = null;
+                selectedSalesClientName = '';
+                loadSalesView();
+                break;
             case 'payments': loadPaymentsView(); break;
             case 'products': loadProductsView(); break; // New
             case 'orders': loadOrdersView(); break; // New
@@ -229,7 +233,7 @@ function renderDashboardTable(data) {
                 ${formatCurrency(c.balance)}
             </td>
             <td>
-                <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;" onclick="viewClient(${c.id})">Ver</button>
+                <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;" onclick='viewClientSales(${c.id}, ${JSON.stringify(c.name)})'>Ver</button>
                 ${parseFloat(c.balance) > 0.01 ? `<button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px; margin-left: 5px; background-color: #25D366; border-color: #25D366;" onclick='generateCollectionMessage(${JSON.stringify(c)})'>Cobrar 📱</button>` : ''}
             </td>
         </tr>
@@ -351,6 +355,8 @@ function filterClients(query) {
 }
 
 let allSales = [];
+let selectedSalesClientId = null;
+let selectedSalesClientName = '';
 
 function renderSalesTable(data) {
     const tbody = document.getElementById('sales-tbody');
@@ -411,6 +417,15 @@ async function loadSalesView() {
             <div style="padding: 0 0 16px 0;">
                 <input type="text" id="search-sales" placeholder="🔍 Buscar por cliente, tipo ou data..." oninput="filterSales(this.value)"
                     style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-dark);color:var(--text-primary);font-size:14px;box-sizing:border-box;">
+                ${selectedSalesClientId ? `
+                <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <span style="font-size:12px;color:var(--text-secondary);">Filtrando cliente:</span>
+                    <span style="font-size:12px;background:rgba(56,189,248,.18);color:var(--text-primary);padding:4px 8px;border-radius:999px;">
+                        ${selectedSalesClientName || `ID ${selectedSalesClientId}`}
+                    </span>
+                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="clearSalesClientFilter()">Limpar filtro</button>
+                </div>
+                ` : ''}
             </div>
             <div class="table-responsive">
                 <table class="table">
@@ -432,18 +447,50 @@ async function loadSalesView() {
             </div>
         </div>
     `;
-    renderSalesTable(allSales);
+
+    if (selectedSalesClientId) {
+        const searchInput = document.getElementById('search-sales');
+        if (searchInput) searchInput.value = selectedSalesClientName || '';
+    }
+
+    applySalesFilters();
 }
 
 function filterSales(query) {
-    const q = query.toLowerCase().trim();
-    const filtered = allSales.filter(s => {
-        const clientName = s.Client ? s.Client.name.toLowerCase() : '';
-        const type = (s.product_type || 'normal').toLowerCase();
-        const date = formatDate(s.date);
-        return clientName.includes(q) || type.includes(q) || date.includes(q);
-    });
+    applySalesFilters(query);
+}
+
+function applySalesFilters(query) {
+    const currentQuery = typeof query === 'string'
+        ? query
+        : (document.getElementById('search-sales')?.value || '');
+
+    const q = currentQuery.toLowerCase().trim();
+    let filtered = allSales;
+
+    if (selectedSalesClientId) {
+        filtered = filtered.filter(s => {
+            const saleClientId = s.Client ? Number(s.Client.id) : Number(s.client_id);
+            return saleClientId === Number(selectedSalesClientId);
+        });
+    }
+
+    if (q) {
+        filtered = filtered.filter(s => {
+            const clientName = s.Client ? s.Client.name.toLowerCase() : '';
+            const type = (s.product_type || 'normal').toLowerCase();
+            const date = formatDate(s.date);
+            return clientName.includes(q) || type.includes(q) || date.includes(q);
+        });
+    }
+
     renderSalesTable(filtered);
+}
+
+function clearSalesClientFilter() {
+    selectedSalesClientId = null;
+    selectedSalesClientName = '';
+    loadSalesView();
 }
 
 let allPayments = [];
@@ -538,12 +585,16 @@ function filterPayments(query) {
 document.getElementById('importForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const fileInput = document.getElementById('import-file');
+    const startDateInput = document.getElementById('import-start-date');
     const file = fileInput.files[0];
 
     if (!file) return;
 
     const formData = new FormData();
     formData.append('file', file);
+    if (startDateInput && startDateInput.value) {
+        formData.append('start_date', startDateInput.value);
+    }
 
     try {
         const btn = e.target.querySelector('button');
@@ -551,7 +602,12 @@ document.getElementById('importForm').addEventListener('submit', async (e) => {
         btn.innerText = 'Importando...';
         btn.disabled = true;
 
-        const res = await fetch(`${API_URL}/payments/import`, {
+        const startDateValue = startDateInput && startDateInput.value ? startDateInput.value : '';
+        const importUrl = startDateValue
+            ? `${API_URL}/payments/import?start_date=${encodeURIComponent(startDateValue)}`
+            : `${API_URL}/payments/import`;
+
+        const res = await fetch(importUrl, {
             method: 'POST',
             body: formData
         });
@@ -559,7 +615,10 @@ document.getElementById('importForm').addEventListener('submit', async (e) => {
         const result = await res.json();
 
         if (res.ok) {
-            alert(`Importação concluída! ${result.imported} pagamentos registrados.`);
+            const skippedText = result.skipped_before_date
+                ? `\n${result.skipped_before_date} lançamento(s) ignorado(s) por data.`
+                : '';
+            alert(`Importação concluída! ${result.imported} pagamentos registrados.${skippedText}`);
             closeModal('importModal');
             loadPaymentsView(); // Refresh
             e.target.reset();
@@ -577,13 +636,21 @@ document.getElementById('importForm').addEventListener('submit', async (e) => {
 });
 document.getElementById('saleForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const productType = document.getElementById('sale-type').value;
+    const applyPromotion = document.getElementById('sale-apply-promotion').checked;
+
     const data = {
         client_name: document.getElementById('sale-client-name').value,
         quantity: document.getElementById('sale-quantity').value,
-        product_type: document.getElementById('sale-type').value,
+        product_type: productType,
+        apply_promotion: applyPromotion,
         // Append T12:00:00 to ensure it falls in the middle of the day, preventing timezone shifts
         date: document.getElementById('sale-date').value ? `${document.getElementById('sale-date').value}T12:00:00` : null
     };
+
+    if (!applyPromotion) {
+        data.unit_price = productType === 'Fit' ? 8 : 5;
+    }
 
     const method = editingId ? 'PUT' : 'POST';
     const url = editingId ? `${API_URL}/sales/${editingId}` : `${API_URL}/sales`;
@@ -722,13 +789,23 @@ async function deletePayment(id) {
 }
 
 function viewClient(id) {
-    // Switch to Clients view
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-    document.querySelector('.nav-item[data-view="clients"]').classList.add('active');
-    loadClientsView();
+    // Mantido para compatibilidade
+    viewClientSales(id);
+}
 
-    // Open Edit Modal for this client
-    setTimeout(() => editClient(id), 100);
+function viewClientSales(id, clientName = '') {
+    selectedSalesClientId = id;
+    selectedSalesClientName = clientName || '';
+
+    if (!selectedSalesClientName) {
+        const client = clients.find(c => Number(c.id) === Number(id));
+        selectedSalesClientName = client ? client.name : '';
+    }
+
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.querySelector('.nav-item[data-view="sales"]').classList.add('active');
+    currentView = 'sales';
+    loadSalesView();
 }
 
 // New/Edit Actions
@@ -767,7 +844,29 @@ function openNewSale() {
     editingId = null;
     document.getElementById('saleForm').reset();
     document.getElementById('sale-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('sale-apply-promotion').checked = true;
     openModal('saleModal');
+}
+
+function inferPromotionByUnitPrice(type, quantity, unitPrice) {
+    const qty = Number(quantity);
+    const unit = Number(unitPrice);
+
+    const baseUnit = type === 'Fit' ? 8 : 5;
+
+    let promoUnit;
+    if (type === 'Fit') {
+        const pairs = Math.floor(qty / 2);
+        const singles = qty % 2;
+        promoUnit = ((pairs * 15) + (singles * 8)) / qty;
+    } else {
+        const groups = Math.floor(qty / 5);
+        const remainder = qty % 5;
+        const chargedQty = (groups * 4) + remainder;
+        promoUnit = (chargedQty * 5) / qty;
+    }
+
+    return Math.abs(unit - promoUnit) <= Math.abs(unit - baseUnit);
 }
 
 async function editSale(id) {
@@ -779,6 +878,11 @@ async function editSale(id) {
         document.getElementById('sale-client-name').value = sale.Client ? sale.Client.name : '';
         document.getElementById('sale-quantity').value = sale.quantity;
         document.getElementById('sale-type').value = sale.product_type || 'Normal';
+        document.getElementById('sale-apply-promotion').checked = inferPromotionByUnitPrice(
+            sale.product_type || 'Normal',
+            sale.quantity,
+            sale.unit_price
+        );
         document.getElementById('sale-date').value = sale.date ? sale.date.split('T')[0] : '';
         openModal('saleModal');
     } catch (err) {
@@ -1116,10 +1220,16 @@ async function handleProductSubmit(e) {
 async function deleteProduct(id) {
     if (!confirm('Excluir este produto?')) return;
     try {
-        await fetch(`${API_URL}/products/${id}`, { method: 'DELETE' });
-        loadProductsView();
+        const res = await fetch(`${API_URL}/products/${id}`, { method: 'DELETE' });
+        if (res.ok || res.status === 204) {
+            alert('Produto excluído com sucesso');
+            loadProductsView();
+        } else {
+            alert('Erro ao excluir produto');
+        }
     } catch (err) {
         alert('Erro ao excluir');
+        console.error(err);
     }
 }
 
@@ -1128,7 +1238,12 @@ async function loadOrdersView() {
     updateHeader('Pedidos', '<button class="btn btn-secondary" onclick="loadOrdersView()">Atualizar 🔄</button>');
 
     try {
-        const res = await fetch(`${API_URL}/orders`); // Auth header handled by interceptor
+        const res = await fetch(`${API_URL}/orders`);
+        
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+
         const orders = await res.json();
 
         if (orders.length === 0) {
@@ -1148,9 +1263,9 @@ async function loadOrdersView() {
                         <p><strong>Contato:</strong> ${o.client_phone || '-'}</p>
                         <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
                         <ul style="padding-left: 20px; color: #444;">
-                            ${o.OrderItems.map(item => `
+                            ${o.OrderItems && o.OrderItems.length > 0 ? o.OrderItems.map(item => `
                                 <li>${item.quantity}x ${item.Product ? item.Product.name : 'Produto Removido'}</li>
-                            `).join('')}
+                            `).join('') : '<li>Sem itens</li>'}
                         </ul>
                         <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
                             <strong style="color: var(--primary-color);">Total: ${formatCurrency(o.total)}</strong>
@@ -1161,8 +1276,11 @@ async function loadOrdersView() {
             </div>
         `;
     } catch (err) {
-        contentArea.innerHTML = '<p class="text-danger">Erro ao carregar pedidos.</p>';
-        console.error(err);
+        console.error('Erro ao carregar pedidos:', err);
+        contentArea.innerHTML = `<div class="card" style="border-left: 5px solid #dc3545;">
+            <p class="text-danger"><strong>Erro ao carregar pedidos:</strong> ${err.message}</p>
+            <p style="font-size: 12px; color: #666;">Verifique se o servidor está rodando e tente novamente.</p>
+        </div>`;
     }
 }
 
